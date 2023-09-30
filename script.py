@@ -157,9 +157,6 @@ def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context,
         if texttextOUT!='':
             textB = texttextOUT + "\n\n~~~~\n\n"
 
-        if _genwithResponse:
-            textB = texttextOUT + "\n\n"    
-
         # Apply extensions
         text, visible_text = apply_extensions('chat_input', text, visible_text, state)
         text = apply_extensions('input', text, state, is_chat=True)
