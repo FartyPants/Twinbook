@@ -24,6 +24,7 @@ last_undo =''
 params = {
         "display_name": "Twinbook",
         "is_tab": True,
+        "selectA": [0,0],
 }
 
 class ToolButton(gr.Button, gr.components.FormComponent):
@@ -89,18 +90,62 @@ def save_string_to_file(file_path, string):
 last_history_visible = []
 last_history_internal = []
 
-def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context, extra_prefix, state,_continue=False, _genwithResponse = False):
+def generate_reply_wrapperMY_SEL(question, textBoxB, context_replace, extra_context, extra_prefix, state, _continue=False, _genwithResponse = False):
+    global params
+    global last_undo
+
+    texttextOUT = str(textBoxB)
+
+    selF = params['selectA'][0]
+    selT = params['selectA'][1]
+    if not selF==selT:
+        print(f"\033[1;32;1m\nContinue from selected text and inserting after {selT}\033[0;37;0m")
+        params['selectA'] = [0,0]
+        beforeB = texttextOUT[:selF]
+        currentB = texttextOUT[selF:selT]
+        afterB = texttextOUT[selT:]
+    else:
+        currentB = texttextOUT
+        params['selectA'] = [0,0]
+        beforeB = ""
+        afterB = ""
+        print(f"\033[1;31;1m\nNo selection made, reverting to full text Continue\033[0;37;0m") 
+        
+    return generate_reply_wrapperMY(question, currentB, context_replace, extra_context, extra_prefix, state,_continue=True, _genwithResponse = False, text_before=beforeB, text_after=afterB)
+
+
+# bastardized original chat function
+# chat.py
+def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context, extra_prefix, state, _continue=False, _genwithResponse = False, _continue_sel = False):
 
     global params
     global last_history_visible
     global last_history_internal
     global last_undo
     
+    selF = params['selectA'][0]
+    selT = params['selectA'][1]
+ 
+    params['selectA'] = [0,0]
    
     texttextOUT = str(textBoxB)
+    
+    text_before = ""
+    text_after = ""
+
+    if _continue_sel:
+        if not selF==selT:
+            print(f"\033[1;32;1m\nContinue from selected text and inserting after {selT}\033[0;37;0m")
+            text_before = texttextOUT[:selF]
+            text_after = texttextOUT[selT:]
+            texttextOUT = texttextOUT[selF:selT]
+        else:
+            print(f"\033[1;31;1m\nNo selection made, reverting to full text Continue\033[0;37;0m")
+            _continue_sel = False
+ 
 
 
-    last_undo = texttextOUT
+    last_undo = text_before + texttextOUT + text_after
     visible_text = None
 
     text = question
@@ -112,11 +157,16 @@ def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context,
     if state['turn_template']=='':
         print("Instruction template is empty! Select Instruct template in tab [Parameters] - [Instruction Template]")
         textB = texttextOUT + "\n Instruction template is empty! Select Instruct template in tab [Parameters] - [Instruction template]"
-        yield textB
+        yield text_before + textB + text_after
         return
 
 
     state['mode'] = 'instruct'
+    
+    _iswriting = "..."
+
+    if text_after!='':
+        _iswriting = "[...]"
 
     #context = state['context']
 
@@ -133,7 +183,7 @@ def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context,
     state = apply_extensions('state', state)
     if shared.model_name == 'None' or shared.model is None:
         print("No model is loaded! Select one in the Model tab.")
-        yield textB
+        yield text_before + textB + text_after
         return
     
     output = {'visible': [], 'internal': []}    
@@ -161,7 +211,7 @@ def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context,
         text, visible_text = apply_extensions('chat_input', text, visible_text, state)
         text = apply_extensions('input', text, state, is_chat=True)
 
-        outtext = textB + "..."
+        outtext = text_before + textB + _iswriting + text_after
         yield outtext
 
     else:
@@ -171,31 +221,30 @@ def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context,
         if regenerate:
             output['visible'].pop()
             output['internal'].pop()
-            outtext = textB + "..."
+            outtext = text_before + textB + _iswriting  + text_after
 
             yield outtext
 
         elif _continue:
 
             textB = texttextOUT
-
-            parts = texttextOUT.split('~~~~')
-
-            # Extract the last part (after the last "~~~~")
-            if len(parts) > 0:
-                last_part = parts[-1].strip()
-            else:
-                last_part = ''
-
-
+            # continue sel can span across squiglies
+            if _continue_sel:
+                last_part = texttextOUT
+                last_part = last_part.replace('~~~~','') 
+            else:    
+                parts = texttextOUT.split('~~~~')
+                # Extract the last part (after the last "~~~~")
+                if len(parts) > 0:
+                    last_part = parts[-1].strip()
+                else:
+                    last_part = ''
+            # fill history for generate_chat_prompt
             last_history['internal'].append([text, last_part])
             last_history['visible'].append([text, last_part])
 
-            outtext = textB + "..."    
+            outtext = text_before + textB + _iswriting + text_after   
             yield outtext
-
-
-
 
 
         # Generate the prompt
@@ -235,7 +284,7 @@ def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context,
             output['visible'][-1][1] = apply_extensions('output', output['visible'][-1][1], state, is_chat=True)
 
             output_text = output['visible'][-1][1]
-            yield  textB + output_text
+            yield  text_before + textB + output_text + text_after
             return
 
         if _continue:
@@ -243,23 +292,24 @@ def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context,
             output['visible'][-1] = [visible_text, visible_reply]
             if is_stream:
                 output_text = output['visible'][-1][1]
-                yield textB + output_text
+                yield text_before + textB + output_text  + text_after
         elif not (j == 0 and visible_reply.strip() == ''):
             output['internal'][-1] = [text, reply.lstrip(' ')]
             output['visible'][-1] = [visible_text, visible_reply.lstrip(' ')]
 
             if is_stream:
                 output_text = output['visible'][-1][1]
-                yield  textB + output_text
+                yield  text_before + textB + output_text + text_after
 
     output['visible'][-1][1] = apply_extensions('output', output['visible'][-1][1], state, is_chat=True)
     
     output_text = output['visible'][-1][1]
     
+    # not really used for anything
     last_history_visible = output['visible'][-1]
     last_history_internal = output['internal'][-1]
 
-    yield  textB + output_text
+    yield  text_before + textB + output_text + text_after
 
 def custom_js():
     java = '''
@@ -291,27 +341,37 @@ polybookObserver.observe(polybookElement.parentNode.parentNode.parentNode, confi
 
 help_str = """
 ## Mini Guide
-It looks simple. It works simple. It is an *extraordinary* way of blending Instruction Chat with Notebook. You get two huge text boxes! On the left, for typing INSTRUCTIONS; on the right, for RESPONSE. 
+It looks simple. It works simple. But this is a great way of combining Instruction Chat with Notebook. You get two huge text boxes! On the left, for typing INSTRUCTIONS; on the right, for RESPONSE. 
 
-So what, huh? Big deal! Well, yes.
+So what, huh? Well, read on.
 
-Here's how it works. Type 'What's your name?' into the Instructions box and click GENERATE NEW. That prints something like 'My name is Assistant' into the right Response box. 
-You can type into the Response box as well, just like any other Notebook. For instance, you might delete the period and type ... ' and I really like ' . Then when you click CONTINUE, it goes on generating more text.
-Probably how it really likes to help users answering their questions. 
+### Generate NEW, edit response, then CONTINUE
+Here's how it works. Type 'What's your name?' into the Instructions box and click GENERATE NEW. That prints something like *'My name is Assistant'* into the right Response box.
 
-But hey! You could have also changed the INSTRUCTIONS itself before you hit Continue! Say, 'Describe how you enjoy your ice-cream.' And only then hit CONTINUE. Suddenly it talks about ice cream, It uses the previous response plus the new instruction to continue with the text. So you affected how it responded.
+Oh, but you can type into the Response box as well, just like in the Notebook. For instance, you might delete the period and type *' and I like '*. Then when you click CONTINUE, it goes on generating more text. Probably how it really likes to help users answering their questions.
 
-This way you can constantly modify responses, in the middle of the text - sort of steer the LLM towards your goal. It's like an assisted chat where you control both sides of the discussion.
+So far so good. But hey! Did you realize you could have also changed the INSTRUCTIONS itself before you hit Continue! Let's say, *'Describe how you enjoy your ice-cream.'* And then hit CONTINUE.
 
-Now every time you click GENERATE NEW, it inserts a few little squiggly lines (separator) into the Response window, and comes up with a whole **NEW** bit of text following the Instruction that doesn't depend on the previous Responses. 
+See? Suddenly it talks about ice cream, It uses the previous response plus the new instruction to CONTINUE generating the text.
 
-By deleting or inserting these squigglies, you can tell the CONTINUE routine exactly how many blocks of the text to take into account.
+This way you can modify responses, in the middle of the text - sort of steer the LLM towards your goal. It's like a chat where you control both sides of the discussion. 
 
-Obviously you can also paste your own text in the response window, set instruction to steer further writing and press CONTINUE.
+### Generate New
+Every time you click GENERATE NEW, it inserts those little squiggly lines (separator) into the Response window before it starts writing. 
+Then it comes up with a whole NEW bit of text following the Instruction that doesn't depend on any previous Responses. 
+Unlike the chat that will include all the previous questions and answer, Generate NEW is a new start from blank slate but without clearing the text in Response window. 
 
-GEN WITH MEMORY: This function takes the last Response (i.e., after last Squiggly line), and inserts it at the top of the LLM instruction, *before* System or Instruction command. 
-This means that the LLM gets to see the last response, but only as a memory. So it generates a NEW response, not a continuation of the text, but with a faint remote ideas of previous facts. 
-(It also appends the text to the last Response without the sqiggly separator, so you can repeat the Gen with memory process over and over with more memories being piled up)
+The squigglies are separating the different NEW responses (sort of like alternative takes). 
+And Continue will always only take to account the text after the last squiggly. So removing squigglies, pasting your own text, editing the text - all those things will affect the Continue operation.
+
+### Gen with Memory
+This function takes the last Response (i.e., after last Squiggly line, just like CONTINUE), and inserts it at the top of the LLM instruction, before System or Instruction commands. This means that the LLM gets to see the last response, but only as a memory. So it generates a NEW response, not a continuation of the text (like CONTIUE does), but with a faint remote ideas of previous facts.
+
+So if you tell it to just write and story (Generate NEW) it will write a random story and then if you use Generate NEW again the next story will be different. However if you use Gen with Memory, the story could be somehow simillar to the last generated one.
+
+### Continue [SEL] (insert after selection)
+If you select a text in Response textbox, you can use Continue [SEL] to continue generating text and insert it after the selected text. The text will be generated from the selected text with the instructions in the INSTRUCTION box. Very cheeky.
+Also selection CAN span multiple blocks (squigglies) and all the text will be used to generate Continue.
 
 Ugh, I know, it sounds complicated when you try to describe like this. You need to figure out how it works. It makes sense. I pinky swear.
 """
@@ -321,6 +381,7 @@ Ugh, I know, it sounds complicated when you try to describe like this. You need 
 def ui():
     global params
 
+    params['selectA'] = [0,0]
 
     with gr.Row():
         with gr.Column():
@@ -355,9 +416,8 @@ def ui():
                 with gr.Column():
                     with gr.Row():    
                         continue_btn =  gr.Button('Continue', variant='primary')
+                        continue_btn_sel = gr.Button('Continue [SEL]',variant='primary', elem_classes="small-button")
                         stop_btn2 = gr.Button('Stop', elem_classes="small-button")
-                with gr.Column():
-                    with gr.Row():
                         clear2 = gr.Button('Clear', elem_classes="small-button")    
                         undo = gr.Button('Undo/Redo', elem_classes="small-button")    
 
@@ -372,6 +432,10 @@ def ui():
     continue_btn.click(
         main_ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(
         partial(generate_reply_wrapperMY, _continue=True), inputs=input_paramsA, outputs= output_paramsA, show_progress=False)
+    
+    continue_btn_sel.click(
+        main_ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(
+        partial(generate_reply_wrapperMY, _continue=True, _genwithResponse = False, _continue_sel = True), inputs=input_paramsA, outputs= output_paramsA, show_progress=False)
     
     generate_btnR.click(
         main_ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(
@@ -401,3 +465,11 @@ def ui():
 
 
     undo.click(undo_event, text_boxB, text_boxB, show_progress=False)
+
+    def on_selectA(evt: gr.SelectData):  # SelectData is a subclass of EventData
+        print (f"Continue [SEL] is available for selected text {evt.index}")
+        global params
+        params['selectA'] = evt.index
+        return ""
+    
+    text_boxB.select(on_selectA, None, None)
