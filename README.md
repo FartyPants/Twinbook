@@ -36,4 +36,8 @@ GEN WITH MEMORY: This function takes the last Response (i.e., after last Squiggl
 
 So if you tell it to just write and story (Generate NEW) it will write a random story and then if you use Generate NEW again the next story will be different. However if you use Gen with Memory, the story could be somehow simillar to the last generated one.
 
+## Continue [SEL] (insert after selection)
+If you select a text in Response textbox, you can use Continue [SEL] to continue generating text and insert it after the selected text. The text will be generated from the selected text with the instructions in the INSTRUCTION box. Very cheeky.
+Also selection CAN span multiple blocks (squigglies) and all the text will be used to generate Continue.
+
 Ugh, I know, it sounds complicated when you try to describe like this. You need to figure out how it works. It makes sense. I pinky swear.
