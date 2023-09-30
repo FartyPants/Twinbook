@@ -32,7 +32,8 @@ Every time you click GENERATE NEW, it inserts those little squiggly lines (separ
 
 The squigglies are separating the different NEW responses (sort of like alternative takes). And Continue will always only take to account the text after the last squiggly. So removing squigglies, pasting your own text, editing the text - all those things will affect the Continue operation.
 
-GEN WITH MEMORY: This function takes the last Response (i.e., after last Squiggly line, just like CONTINUE), and inserts it at the top of the LLM instruction, before System or Instruction commands. This means that the LLM gets to see the last response, but only as a memory. So it generates a NEW response, not a continuation of the text (like CONTIUE does), but with a faint remote ideas of previous facts. 
+## GEN WITH MEMORY
+This function takes the last Response (i.e., after last Squiggly line, just like CONTINUE), and inserts it at the top of the LLM instruction, before System or Instruction commands. This means that the LLM gets to see the last response, but only as a memory. So it generates a NEW response, not a continuation of the text (like CONTIUE does), but with a faint remote ideas of previous facts. 
 
 So if you tell it to just write and story (Generate NEW) it will write a random story and then if you use Generate NEW again the next story will be different. However if you use Gen with Memory, the story could be somehow simillar to the last generated one.
 
