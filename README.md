@@ -34,6 +34,6 @@ The squigglies are separating the different NEW responses (sort of like alternat
 
 GEN WITH MEMORY: This function takes the last Response (i.e., after last Squiggly line, just like CONTINUE), and inserts it at the top of the LLM instruction, before System or Instruction commands. This means that the LLM gets to see the last response, but only as a memory. So it generates a NEW response, not a continuation of the text (like CONTIUE does), but with a faint remote ideas of previous facts. 
 
-TThis is great for writing a new scene with new instructions for example - LLM still remembers the previous text (up to last squigly line)
+So if you tell it to just write and story (Generate NEW) it will write a random story and then if you use Generate NEW again the next story will be different. However if you use Gen with Memory, the story could be somehow simillar to the last generated one.
 
 Ugh, I know, it sounds complicated when you try to describe like this. You need to figure out how it works. It makes sense. I pinky swear.
