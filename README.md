@@ -19,7 +19,7 @@ So far so good. But hey! Did you realize you could have also changed the INSTRUC
 
 ![image](https://github.com/FartyPants/Twinbook/assets/23346289/c9a37f42-0c90-4fc5-92c0-ebbbe5aa6098)
 
-See? Suddenly it talks about ice cream, It uses the previous response plus the new instruction to CONTINUE generating the text. Can you see the potential?
+See? Suddenly it talks about ice cream, It uses the previous response plus the new instruction to CONTINUE generating the text. 
 
 This way you can modify responses, in the middle of the text - sort of steer the LLM towards your goal. It’s like a chat where you control both sides of the discussion. Just delete the part where it gets off the ramp and write different instructions. Both the previus text and the new instruction will became part of the new text.
 
