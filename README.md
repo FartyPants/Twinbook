@@ -4,7 +4,7 @@
 
 It looks simple. It works simple. But this is an extraordinary way of combining Instruction Chat with Notebook. You get two huge text boxes! On the left, for typing INSTRUCTIONS; on the right, for RESPONSE.
 
-So what, huh? Big deal!
+So what, huh? Well, read on.
 
 Here’s how it works. Type ‘What’s your name?’ into the Instructions box and click GENERATE NEW. That prints something like ‘My name is Assistant’ into the right Response box.
 
