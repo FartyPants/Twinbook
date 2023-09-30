@@ -231,7 +231,7 @@ def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context,
             # continue sel can span across squiglies
             if _continue_sel:
                 last_part = texttextOUT
-                last_part = last_part.replace('~~~~','') 
+                last_part = last_part.replace("\n~~~~\n",'') 
             else:    
                 parts = texttextOUT.split('~~~~')
                 # Extract the last part (after the last "~~~~")
