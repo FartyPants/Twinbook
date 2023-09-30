@@ -11,8 +11,6 @@ Here’s how it works. Type ‘What’s your name?’ into the Instructions box 
 ![image](https://github.com/FartyPants/Twinbook/assets/23346289/70374ba9-7d9b-4a5f-8f4e-598c7de13ed7)
 
 Oh, but you can type into the Response box as well, just like in the Notebook. For instance, you might delete the period and type ’ and I like ’. 
-
-## CONTINUE
 Then when you click CONTINUE, it goes on generating more text. Probably how it really likes to help users answering their questions.
 
 ![image](https://github.com/FartyPants/Twinbook/assets/23346289/7fc2e935-4653-494a-a1f9-5127a2e223be)
