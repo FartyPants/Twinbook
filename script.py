@@ -90,33 +90,10 @@ def save_string_to_file(file_path, string):
 last_history_visible = []
 last_history_internal = []
 
-def generate_reply_wrapperMY_SEL(question, textBoxB, context_replace, extra_context, extra_prefix, state, _continue=False, _genwithResponse = False):
-    global params
-    global last_undo
-
-    texttextOUT = str(textBoxB)
-
-    selF = params['selectA'][0]
-    selT = params['selectA'][1]
-    if not selF==selT:
-        print(f"\033[1;32;1m\nContinue from selected text and inserting after {selT}\033[0;37;0m")
-        params['selectA'] = [0,0]
-        beforeB = texttextOUT[:selF]
-        currentB = texttextOUT[selF:selT]
-        afterB = texttextOUT[selT:]
-    else:
-        currentB = texttextOUT
-        params['selectA'] = [0,0]
-        beforeB = ""
-        afterB = ""
-        print(f"\033[1;31;1m\nNo selection made, reverting to full text Continue\033[0;37;0m") 
-        
-    return generate_reply_wrapperMY(question, currentB, context_replace, extra_context, extra_prefix, state,_continue=True, _genwithResponse = False, text_before=beforeB, text_after=afterB)
-
 
 # bastardized original chat function
 # chat.py
-def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context, extra_prefix, state, _continue=False, _genwithResponse = False, _continue_sel = False):
+def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context, extra_prefix, quick_instruction, state, _continue=False, _genwithResponse = False, _continue_sel = False):
 
     global params
     global last_history_visible
@@ -149,8 +126,14 @@ def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context,
     visible_text = None
 
     text = question
+
+
+
     if extra_prefix.strip()!='':
         text = extra_prefix + question
+
+    if quick_instruction.strip()!='':
+        text = quick_instruction
 
     textB = texttextOUT
 
@@ -389,9 +372,12 @@ def ui():
             with gr.Tab('Instructions'):
                 text_boxA = gr.Textbox(value='', lines=20, label = '', elem_classes=['textbox', 'add_scrollbar'])
             with gr.Tab('Extra Context'):
-                extra_context = gr.Textbox(value='', lines=10, label = 'Extra Context', elem_classes=['textbox'], info='Enter memories that the model should know. Ex: Your name is Sarah.')
-                context_replace =  gr.Textbox(value='', lines=1, label = 'System Instruction', elem_classes=['textbox'], info='If not empty, it will replace the default system instruction (Such as "Below is an instruction that describes a task...")')
-                extra_prefix = gr.Textbox(value='', lines=2, label = 'Extra instruction', elem_classes=['textbox'], info='Enter extra instruction that will be inserted before your text in the prompt. Ex: Rewrite the following text: ')
+                quick_instruction = gr.Textbox(value='', lines=5, label = 'Temporary, ALT Instruction', elem_classes=['textbox'], info='Enter an Alternative instruction that will temporarily take precedent over the main Instruction. Example: "Describe xxx in details" to add more context to a paragraph selected in Response box, while using Continue [SEL].')
+                gr.Markdown(' ')
+                extra_context = gr.Textbox(value='', lines=10, label = 'Extra Context and Memories', elem_classes=['textbox'], info='Enter memories that the model should know. Example: Your name is Sarah and you are a student at UBC')
+                context_replace =  gr.Textbox(value='', lines=1, label = 'System Instruction', elem_classes=['textbox'], info='If filled, it will replace the Instruct Template system instruction.', placeholder = 'Below is an instruction that describes a task, you are blah, blah, blah...')
+                extra_prefix = gr.Textbox(value='', lines=2, label = 'Instruction Prefix', elem_classes=['textbox'], info='Enter instruction that will be always inserted before your text in the prompt. Example: Rewrite the following text: ')
+
             with gr.Tab('Help'):
                 gr.Markdown(help_str)
                  
@@ -422,24 +408,28 @@ def ui():
                         undo = gr.Button('Undo/Redo', elem_classes="small-button")    
 
 
-    input_paramsA = [text_boxA, text_boxB, context_replace, extra_context, extra_prefix, shared.gradio['interface_state']]
+    input_paramsA = [text_boxA, text_boxB, context_replace, extra_context, extra_prefix, quick_instruction, shared.gradio['interface_state']]
     output_paramsA =[text_boxB]
+
+    def clear_quick_instruction(quick_instruction):
+        return ''
 
     generate_btn.click(
         main_ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(
-        generate_reply_wrapperMY, inputs=input_paramsA, outputs= output_paramsA, show_progress=False)
+        generate_reply_wrapperMY, inputs=input_paramsA, outputs= output_paramsA, show_progress=False).then(clear_quick_instruction,quick_instruction,quick_instruction)
 
     continue_btn.click(
         main_ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(
-        partial(generate_reply_wrapperMY, _continue=True), inputs=input_paramsA, outputs= output_paramsA, show_progress=False)
+        partial(generate_reply_wrapperMY, _continue=True), inputs=input_paramsA, outputs= output_paramsA, show_progress=False).then(clear_quick_instruction,quick_instruction,quick_instruction)
     
     continue_btn_sel.click(
         main_ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(
-        partial(generate_reply_wrapperMY, _continue=True, _genwithResponse = False, _continue_sel = True), inputs=input_paramsA, outputs= output_paramsA, show_progress=False)
+        partial(generate_reply_wrapperMY, _continue=True, _genwithResponse = False, _continue_sel = True), inputs=input_paramsA, outputs= output_paramsA, show_progress=False).then(
+            clear_quick_instruction,quick_instruction,quick_instruction)
     
     generate_btnR.click(
         main_ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(
-        partial(generate_reply_wrapperMY, _continue=False, _genwithResponse = True), inputs=input_paramsA, outputs= output_paramsA, show_progress=False)
+        partial(generate_reply_wrapperMY, _continue=False, _genwithResponse = True), inputs=input_paramsA, outputs= output_paramsA, show_progress=False).then(clear_quick_instruction,quick_instruction,quick_instruction)
 
     stop_btn.click(stop_everything_event, None, None, queue=False)
     stop_btn2.click(stop_everything_event, None, None, queue=False)
