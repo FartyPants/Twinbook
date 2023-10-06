@@ -41,4 +41,8 @@ So if you tell it to just write and story (Generate NEW) it will write a random 
 If you select a text in Response textbox, you can use Continue [SEL] to continue generating text and insert it after the selected text. The text will be generated from the selected text with the instructions in the INSTRUCTION box. Very cheeky.
 Also selection CAN span multiple blocks (squigglies) and all the text will be used to generate Continue.
 
+## Keep
+Keep is a box where you can keep stuff. You can also send text from Response to keep with one button. Just select text in Response window and click [sel] to Keep
+
 Ugh, I know, it sounds complicated when you try to describe like this. You need to figure out how it works. It makes sense. I pinky swear.
+
