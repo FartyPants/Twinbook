@@ -12,13 +12,37 @@ from modules import chat
 from modules import ui as main_ui
 from modules.utils import gradio
 from modules.extensions import apply_extensions
+import random
 
 right_symbol = '\U000027A1'
 left_symbol = '\U00002B05'
 refresh_symbol = '\U0001f504'  # 🔄
 
-
+basepath = "extensions/Twinbook/last.json"
 last_undo =''
+
+describe_all = "Add an immersive and evocative description to the scene, capturing its visual and auditory aspects."
+describe_auditory = "Can you help me create a more evocative description of the scene, capturing its auditory aspects??"
+describe_smell = "Can you help me create a more evocative description of the scene, capturing its olfactory aspects?"
+describe_paint = "Paint a vivid picture to make the story come alive for the reader."
+describe_va = "Add auditory and visual imagery to the paragraph to create a more vivid picture for the reader."
+# You are a talented writing assistant. Always respond by incorporating the instructions into expertly written prose that is highly detailed, evocative, vivid and engaging.
+
+
+describe_add_simile = "Please enhance the sentence with a simile."
+# postfix can be also comma delimited
+simile_postfix = 'like'
+postfix_index = 0
+
+save_params = {
+    "text_boxA": '',
+    "text_boxB": '',
+    "text_boxC": '',
+    "context_replace": '',
+    "extra_context": '',
+    "extra_prefix": '',
+}
+
 
 
 params = {
@@ -55,14 +79,6 @@ def create_refresh_button(refresh_component, refresh_method, refreshed_args, ele
     )
     return refresh_button
 
-def get_file_path(folder, filename):
-    basepath = "extensions/mass_rewritter/"+folder
-    #print(f"Basepath: {basepath} and {filename}")
-    paths = (x for x in Path(basepath).iterdir() if x.suffix in ('.txt'))
-    for path in paths:
-        if path.stem.lower() == filename.lower():
-            return str(path)
-    return ""
 
 def read_file_to_string(file_path):
     data = ''
@@ -91,14 +107,36 @@ last_history_visible = []
 last_history_internal = []
 
 
+def send_selected_to_Keep(text, textC):
+    global params
+    global save_params
+    selF = params['selectA'][0]
+    selT = params['selectA'][1]
+    params['selectA'] = [0,0]
+    texttextOUT = str(text)
+    if not selF==selT:
+        print(f"\033[1;32;1m\nSending selected text to Keep\033[0;37;0m")
+        texttextOUT = texttextOUT[selF:selT]
+
+        rettext = str(textC)+"\n+++\n"+texttextOUT+"\n"
+        save_params["text_boxC"] = rettext
+        return rettext
+    else:
+        print(f"No selection made")
+        save_params["text_boxC"] = textC
+        return textC
+
+    
 # bastardized original chat function
 # chat.py
-def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context, extra_prefix, quick_instruction, state, _continue=False, _genwithResponse = False, _continue_sel = False):
+def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context, extra_prefix, state, quick_instruction, _continue=False, _genwithResponse = False, _continue_sel = False, _postfix = '', _addstop = []):
 
     global params
     global last_history_visible
     global last_history_internal
     global last_undo
+    global postfix_index
+    global basepath
     
     selF = params['selectA'][0]
     selT = params['selectA'][1]
@@ -134,6 +172,15 @@ def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context,
 
     if quick_instruction.strip()!='':
         text = quick_instruction
+
+    if _postfix !='':
+        string_list = [item.strip() for item in _postfix.split(',')]
+        if len(string_list) > 0:
+            postfix_index = int(postfix_index) % len(string_list)
+            next_item = string_list[postfix_index]
+            postfix_index = postfix_index + 1
+            texttextOUT = texttextOUT.rstrip() 
+            texttextOUT = texttextOUT + ' ' + next_item
 
     textB = texttextOUT
 
@@ -176,7 +223,11 @@ def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context,
     last_history = {'visible': [], 'internal': []} 
     stopping_strings = chat.get_stopping_strings(state)
 
-    #print (stopping_strings)
+    if len(_addstop) > 0:
+        stopping_strings = stopping_strings + _addstop
+
+
+    print (stopping_strings)
     is_stream = state['stream']
     regenerate = False
 
@@ -215,6 +266,7 @@ def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context,
             if _continue_sel:
                 last_part = texttextOUT
                 last_part = last_part.replace("\n~~~~\n",'') 
+
             else:    
                 parts = texttextOUT.split('~~~~')
                 # Extract the last part (after the last "~~~~")
@@ -292,6 +344,22 @@ def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context,
     last_history_visible = output['visible'][-1]
     last_history_internal = output['internal'][-1]
 
+ 
+
+    save_params["text_boxA"] = question
+    save_params["text_boxB"] = text_before + textB + output_text + text_after
+    #save_params["text_boxC"] = textBoxC
+    save_params["context_replace"] =  context_replace
+    save_params["extra_context"] = extra_context
+    save_params["extra_prefix"] =  extra_prefix
+
+
+    try:
+        with open(Path(basepath), 'w') as json_file:
+            json.dump(save_params, json_file, indent=4)
+    except:
+        print("Can't save last state..")
+
     yield  text_before + textB + output_text + text_after
 
 def custom_js():
@@ -363,27 +431,56 @@ Ugh, I know, it sounds complicated when you try to describe like this. You need 
 
 def ui():
     global params
+    global basepath
+    global save_params
 
     params['selectA'] = [0,0]
+
+    try:
+        with open(basepath, 'r') as json_file:
+            new_params = json.load(json_file)
+            print("Twinbook: Loading last state")
+            for item in new_params:
+                save_params[item] = new_params[item]
+    except:
+        print("Twinbook: No last state saved")
+        pass
 
     with gr.Row():
         with gr.Column():
             #extra_context = gr.Textbox(value='', lines=5, label = 'Extra Context', elem_classes=['textbox'])
             with gr.Tab('Instructions'):
-                text_boxA = gr.Textbox(value='', lines=20, label = '', elem_classes=['textbox', 'add_scrollbar'])
+                text_boxA = gr.Textbox(value=save_params["text_boxA"], lines=20, label = '', elem_classes=['textbox', 'add_scrollbar'])
             with gr.Tab('Extra Context'):
                 quick_instruction = gr.Textbox(value='', lines=5, label = 'Temporary, ALT Instruction', elem_classes=['textbox'], info='Enter an Alternative instruction that will temporarily take precedent over the main Instruction. Example: "Describe xxx in details" to add more context to a paragraph selected in Response box, while using Continue [SEL].')
-                gr.Markdown(' ')
-                extra_context = gr.Textbox(value='', lines=10, label = 'Extra Context and Memories', elem_classes=['textbox'], info='Enter memories that the model should know. Example: Your name is Sarah and you are a student at UBC')
-                context_replace =  gr.Textbox(value='', lines=1, label = 'System Instruction', elem_classes=['textbox'], info='If filled, it will replace the Instruct Template system instruction.', placeholder = 'Below is an instruction that describes a task, you are blah, blah, blah...')
-                extra_prefix = gr.Textbox(value='', lines=2, label = 'Instruction Prefix', elem_classes=['textbox'], info='Enter instruction that will be always inserted before your text in the prompt. Example: Rewrite the following text: ')
+                gr.Markdown('Select Text in right window and press one of the Quick Instructions')
+                with gr.Row():
+                    button_describe_all = gr.Button('Immersive description')
+                    button_describe_va = gr.Button('Vivid Imagery')
+                    button_describe_paint = gr.Button('Vivid Picture')
+                    button_describe_auditory = gr.Button('Auditory Senses')
+                    button_describe_smell = gr.Button('Senses of Smell')
+                    button_describe_simile = gr.Button('Simile')
+
+                extra_context = gr.Textbox(value=save_params["extra_context"], lines=5, label = 'Extra Context and Memories', elem_classes=['textbox'], info='Enter memories that the model should know. Example: Your name is Sarah and you are a student at UBC')
+                context_replace =  gr.Textbox(value=save_params["context_replace"], lines=1, label = 'System Instruction', elem_classes=['textbox'], info='If filled, it will replace the Instruct Template system instruction.', placeholder = 'Below is an instruction that describes a task, you are blah, blah, blah...')
+                extra_prefix = gr.Textbox(value=save_params["extra_prefix"], lines=2, label = 'Instruction Prefix', elem_classes=['textbox'], info='Enter instruction that will be always inserted before your text in the prompt. Example: Rewrite the following text: ')
+                with gr.Row():
+                    button_prefix_rewrite = gr.Button('Rewrite')
+                    gr.Markdown(" ")
+                    gr.Markdown(" ")
+                    gr.Markdown(" ")
+                    button_prefix_clear = gr.Button('Clear')
 
             with gr.Tab('Help'):
                 gr.Markdown(help_str)
                  
         with gr.Column():
             with gr.Tab('Response'):
-                text_boxB = gr.Textbox(value='', lines=20, label = '', elem_classes=['textbox', 'add_scrollbar'], elem_id='textbox-polybook')
+                text_boxB = gr.Textbox(value=save_params["text_boxB"], lines=20, label = '', elem_classes=['textbox', 'add_scrollbar'], elem_id='textbox-polybook')
+            with gr.Tab('Keep'):
+                text_boxC = gr.Textbox(value=save_params["text_boxC"], lines=20, label = '', elem_classes=['textbox', 'add_scrollbar'], elem_id='textbox-polybook')
+                               
     with gr.Row():    
         with gr.Column():      
             with gr.Row():
@@ -405,10 +502,12 @@ def ui():
                         continue_btn_sel = gr.Button('Continue [SEL]',variant='primary', elem_classes="small-button")
                         stop_btn2 = gr.Button('Stop', elem_classes="small-button")
                         clear2 = gr.Button('Clear', elem_classes="small-button")    
-                        undo = gr.Button('Undo/Redo', elem_classes="small-button")    
+                        undo = gr.Button('Undo/Redo', elem_classes="small-button")
+                        send_sel_keep = gr.Button('[Sel] to Keep', elem_classes="small-button")     
 
 
-    input_paramsA = [text_boxA, text_boxB, context_replace, extra_context, extra_prefix, quick_instruction, shared.gradio['interface_state']]
+    input_paramsA = [text_boxA, text_boxB, context_replace, extra_context, extra_prefix, shared.gradio['interface_state'], quick_instruction]
+    input_paramsQI = [text_boxA, text_boxB, context_replace, extra_context, extra_prefix, shared.gradio['interface_state']]
     output_paramsA =[text_boxB]
 
     def clear_quick_instruction(quick_instruction):
@@ -431,6 +530,25 @@ def ui():
         main_ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(
         partial(generate_reply_wrapperMY, _continue=False, _genwithResponse = True), inputs=input_paramsA, outputs= output_paramsA, show_progress=False).then(clear_quick_instruction,quick_instruction,quick_instruction)
 
+    
+    button_describe_all.click(main_ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(
+        partial(generate_reply_wrapperMY, quick_instruction = describe_all ,_continue=True, _genwithResponse = False, _continue_sel = True,_addstop = ['\n']), inputs=input_paramsQI, outputs= output_paramsA, show_progress=False)
+
+    button_describe_va.click(main_ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(
+        partial(generate_reply_wrapperMY, quick_instruction = describe_va ,_continue=True, _genwithResponse = False, _continue_sel = True,_addstop = ['\n']), inputs=input_paramsQI, outputs= output_paramsA, show_progress=False)
+ 
+    button_describe_paint.click(main_ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(
+        partial(generate_reply_wrapperMY, quick_instruction = describe_paint ,_continue=True, _genwithResponse = False, _continue_sel = True,_addstop = ['\n']), inputs=input_paramsQI, outputs= output_paramsA, show_progress=False)
+    
+    button_describe_auditory.click(main_ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(
+        partial(generate_reply_wrapperMY, quick_instruction = describe_auditory ,_continue=True, _genwithResponse = False, _continue_sel = True,_addstop = ['\n']), inputs=input_paramsQI, outputs= output_paramsA, show_progress=False)
+    
+    button_describe_smell.click(main_ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(
+        partial(generate_reply_wrapperMY, quick_instruction = describe_smell ,_continue=True, _genwithResponse = False, _continue_sel = True,_addstop = ['\n']), inputs=input_paramsQI, outputs= output_paramsA, show_progress=False)
+
+    button_describe_simile.click(main_ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(
+        partial(generate_reply_wrapperMY, quick_instruction = describe_add_simile ,_continue=True, _genwithResponse = False, _continue_sel = True, _postfix = simile_postfix, _addstop = ['.','!','?']), inputs=input_paramsQI, outputs= output_paramsA, show_progress=False)
+                
     stop_btn.click(stop_everything_event, None, None, queue=False)
     stop_btn2.click(stop_everything_event, None, None, queue=False)
     
@@ -457,9 +575,19 @@ def ui():
     undo.click(undo_event, text_boxB, text_boxB, show_progress=False)
 
     def on_selectA(evt: gr.SelectData):  # SelectData is a subclass of EventData
-        print (f"Continue [SEL] is available for selected text {evt.index}")
+        #print (f"Continue [SEL] is available for selected text {evt.index}")
         global params
         params['selectA'] = evt.index
         return ""
     
     text_boxB.select(on_selectA, None, None)
+
+    send_sel_keep.click(send_selected_to_Keep, [text_boxB,text_boxC], text_boxC, show_progress=False)
+
+    text_boxC.change(lambda x: save_params.update({"text_boxC": x}), text_boxC, None) 
+
+    def rewrite_prefix(text: str):
+        return text
+
+    button_prefix_rewrite.click(partial(rewrite_prefix, text="Rewrite the following text: "), None, extra_prefix, show_progress=False)
+    button_prefix_clear.click(partial(rewrite_prefix, text=""), None, extra_prefix, show_progress=False)
