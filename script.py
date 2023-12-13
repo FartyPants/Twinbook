@@ -41,6 +41,7 @@ save_params = {
     "context_replace": '',
     "extra_context": '',
     "extra_prefix": '',
+    "add_stats": False,
 }
 
 
@@ -126,6 +127,21 @@ def send_selected_to_Keep(text, textC):
         save_params["text_boxC"] = textC
         return textC
 
+
+def filter_squigly(text):
+    text = text.replace('\r\n','\n')
+    lines = text.split('\n')
+    result = ''
+    for line in lines:
+        if line.startswith('~~~~'):
+            line = '~~~~'
+        
+        if result == '':
+            result = line
+        else:    
+            result += '\n' + line
+
+    return result
     
 # bastardized original chat function
 # chat.py
@@ -205,6 +221,7 @@ def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context,
 
     if context_replace.strip()!='':
         context_instruct = context_replace+'\n'
+        state['context_instruct'] = context_instruct
     
     if extra_context.strip()!='':
         state['context_instruct'] = extra_context+ '\n' + context_instruct
@@ -238,8 +255,25 @@ def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context,
     if not any((regenerate, _continue)):
         visible_text = text
 
-        if texttextOUT!='':
-            textB = texttextOUT + "\n\n~~~~\n\n"
+        add_stats = save_params["add_stats"]
+
+        if add_stats:
+            if shared.model:
+                adapter_name = getattr(shared.model,'active_adapter','')
+
+                suffix_models = shared.model_name
+                if adapter_name != '':
+                    suffix_models = suffix_models + " [" + adapter_name+ "]" 
+
+
+                suffix_models =  suffix_models + f"  Temp: {state['temperature']}, top_p: {state['top_p']}, top_k: {state['top_k']}, RP: {state['repetition_penalty']}"
+
+            if texttextOUT!='':
+                textB = texttextOUT + f"\n\n~~~~ {suffix_models} ~~~~\n\n"
+        else:
+            if texttextOUT!='':
+                textB = texttextOUT + f"\n\n~~~~\n\n"
+
 
         # Apply extensions
         text, visible_text = apply_extensions('chat_input', text, visible_text, state)
@@ -265,10 +299,13 @@ def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context,
             # continue sel can span across squiglies
             if _continue_sel:
                 last_part = texttextOUT
-                last_part = last_part.replace("\n~~~~\n",'') 
+                filtered = filter_squigly(last_part)
+                last_part = filtered.replace("\n~~~~\n",'') 
 
-            else:    
-                parts = texttextOUT.split('~~~~')
+            else: 
+
+                filtered = filter_squigly(texttextOUT)   
+                parts = filtered.split('~~~~')
                 # Extract the last part (after the last "~~~~")
                 if len(parts) > 0:
                     last_part = parts[-1].strip()
@@ -293,7 +330,9 @@ def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context,
     prompt = chat.generate_chat_prompt(text, state, **kwargs)
 
     if _genwithResponse:
-        parts = texttextOUT.split('~~~~')
+
+        filtered = filter_squigly(texttextOUT)   
+        parts = filtered.split('~~~~')
 
         # Extract the last part (after the last "~~~~")
         if len(parts) > 0:
@@ -471,6 +510,8 @@ def ui():
                     gr.Markdown(" ")
                     gr.Markdown(" ")
                     button_prefix_clear = gr.Button('Clear')
+                with gr.Row():
+                    add_stats =  gr.Checkbox(value = save_params["add_stats"], label='Show Stats in divider',info = 'Add model, lora and parameters after ~~~~ ' )    
 
             with gr.Tab('Help'):
                 gr.Markdown(help_str)
@@ -585,6 +626,8 @@ def ui():
     send_sel_keep.click(send_selected_to_Keep, [text_boxB,text_boxC], text_boxC, show_progress=False)
 
     text_boxC.change(lambda x: save_params.update({"text_boxC": x}), text_boxC, None) 
+    add_stats.change(lambda x: save_params.update({"add_stats": x}), add_stats, None)
+
 
     def rewrite_prefix(text: str):
         return text
