@@ -4,6 +4,7 @@
 
 New:
 
+- Show Stats in divider (add model, lora and params after ~~~~ (optional settings in Extra context tab)
 - save state of the tect boxes so when it reloads, the text is back
 
 It looks simple. It works simple. But this is a great way of combining Instruction Chat with Notebook. You get two huge text boxes! On the left, for typing INSTRUCTIONS; on the right, for RESPONSE.
