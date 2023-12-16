@@ -2,6 +2,9 @@
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/Q5Q5MOB4M)
 
+
+Note: not currently working with the most recent WebUI that removed the Instruct template and added jinja
+
 New:
 
 - Show Stats in divider (add model, lora and params after ~~~~ (optional settings in Extra context tab)
