@@ -25,7 +25,9 @@ describe_all = "Add an immersive and evocative description to the scene, capturi
 describe_auditory = "Can you help me create a more evocative description of the scene, capturing its auditory aspects??"
 describe_smell = "Can you help me create a more evocative description of the scene, capturing its olfactory aspects?"
 describe_paint = "Paint a vivid picture to make the story come alive for the reader."
-describe_va = "Add auditory and visual imagery to the paragraph to create a more vivid picture for the reader."
+describe_va = "Add visual imagery of the scene to create a more vivid picture for the reader."
+
+describe_continue = "Continue writing the story giving it more deatils."
 # You are a talented writing assistant. Always respond by incorporating the instructions into expertly written prose that is highly detailed, evocative, vivid and engaging.
 
 
@@ -145,6 +147,14 @@ def filter_squigly(text):
     
 # bastardized original chat function
 # chat.py
+
+# new jinja : 'custom_system_message' , instruction_template_str
+
+#   extra_context 'Extra Context and Memories'
+#   context_replace  'System Instruction'
+#   extra_prefix 'Instruction Prefix'
+ 
+
 def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context, extra_prefix, state, quick_instruction, _continue=False, _genwithResponse = False, _continue_sel = False, _postfix = '', _addstop = []):
 
     global params
@@ -160,6 +170,10 @@ def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context,
     params['selectA'] = [0,0]
    
     texttextOUT = str(textBoxB)
+
+    new_version = True
+    if 'turn_template' in state:
+        new_version = False
     
     text_before = ""
     text_after = ""
@@ -196,15 +210,24 @@ def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context,
             next_item = string_list[postfix_index]
             postfix_index = postfix_index + 1
             texttextOUT = texttextOUT.rstrip() 
+            if quick_instruction == describe_add_simile:
+                texttextOUT = texttextOUT.rstrip('.!?') 
             texttextOUT = texttextOUT + ' ' + next_item
 
     textB = texttextOUT
 
-    if state['turn_template']=='':
-        print("Instruction template is empty! Select Instruct template in tab [Parameters] - [Instruction Template]")
-        textB = texttextOUT + "\n Instruction template is empty! Select Instruct template in tab [Parameters] - [Instruction template]"
-        yield text_before + textB + text_after
-        return
+    if new_version:
+       if state['instruction_template_str']=='':
+            print("Instruction template is empty! Select Instruct template in tab [Parameters] - [Instruction Template]")
+            textB = texttextOUT + "\n Instruction template is empty! Select Instruct template in tab [Parameters] - [Instruction template]"
+            yield text_before + textB + text_after
+            return
+    else:
+        if state['turn_template']=='':
+            print("Instruction template is empty! Select Instruct template in tab [Parameters] - [Instruction Template]")
+            textB = texttextOUT + "\n Instruction template is empty! Select Instruct template in tab [Parameters] - [Instruction template]"
+            yield text_before + textB + text_after
+            return
 
 
     state['mode'] = 'instruct'
@@ -215,16 +238,28 @@ def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context,
         _iswriting = "[...]"
 
     #context = state['context']
+        
+    if new_version:
+        context_instruct = state['custom_system_message']
+        contest_instruct_bk = context_instruct
 
-    context_instruct = state['context_instruct']
-    contest_instruct_bk = context_instruct
+        if context_replace.strip()!='':
+            context_instruct = context_replace+'\n'
+            state['custom_system_message'] = context_instruct
+        
+        if extra_context.strip()!='':
+            state['custom_system_message'] = extra_context+ '\n' + context_instruct    
+ 
+    else:        
+        context_instruct = state['context_instruct']
+        contest_instruct_bk = context_instruct
 
-    if context_replace.strip()!='':
-        context_instruct = context_replace+'\n'
-        state['context_instruct'] = context_instruct
-    
-    if extra_context.strip()!='':
-        state['context_instruct'] = extra_context+ '\n' + context_instruct
+        if context_replace.strip()!='':
+            context_instruct = context_replace+'\n'
+            state['context_instruct'] = context_instruct
+        
+        if extra_context.strip()!='':
+            state['context_instruct'] = extra_context+ '\n' + context_instruct
 
 
     state = apply_extensions('state', state)
@@ -244,7 +279,7 @@ def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context,
         stopping_strings = stopping_strings + _addstop
 
 
-    print (stopping_strings)
+    #print (stopping_strings)
     is_stream = state['stream']
     regenerate = False
 
@@ -252,16 +287,16 @@ def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context,
 
 
   # Prepare the input
-    if not any((regenerate, _continue)):
+    if not (regenerate or _continue):
         visible_text = text
 
         add_stats = save_params["add_stats"]
 
         if add_stats:
             if shared.model:
-                adapter_name = getattr(shared.model,'active_adapter','')
+                adapter_name = str(getattr(shared.model,'active_adapter',''))
 
-                suffix_models = shared.model_name
+                suffix_models = str(shared.model_name)
                 if adapter_name != '':
                     suffix_models = suffix_models + " [" + adapter_name+ "]" 
 
@@ -301,6 +336,11 @@ def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context,
                 last_part = texttextOUT
                 filtered = filter_squigly(last_part)
                 last_part = filtered.replace("\n~~~~\n",'') 
+              
+                #if quick_instruction == describe_continue:
+                #    last_history['internal'].append(['Continue writing.', last_part])
+                #    last_history['visible'].append(['Continue writing.', last_part])
+                #    last_part = 'Here is more details: '
 
             else: 
 
@@ -311,6 +351,7 @@ def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context,
                     last_part = parts[-1].strip()
                 else:
                     last_part = ''
+
             # fill history for generate_chat_prompt
             last_history['internal'].append([text, last_part])
             last_history['visible'].append([text, last_part])
@@ -346,7 +387,10 @@ def generate_reply_wrapperMY(question, textBoxB, context_replace, extra_context,
 
 
     #put it back, just in case
-    state['context_instruct'] = contest_instruct_bk
+    if new_version:
+        state['custom_system_message'] = contest_instruct_bk
+    else:    
+        state['context_instruct'] = contest_instruct_bk
 
     # Generate
     reply = None
@@ -492,14 +536,15 @@ def ui():
                 text_boxA = gr.Textbox(value=save_params["text_boxA"], lines=20, label = '', elem_classes=['textbox', 'add_scrollbar'])
             with gr.Tab('Extra Context'):
                 quick_instruction = gr.Textbox(value='', lines=5, label = 'Temporary, ALT Instruction', elem_classes=['textbox'], info='Enter an Alternative instruction that will temporarily take precedent over the main Instruction. Example: "Describe xxx in details" to add more context to a paragraph selected in Response box, while using Continue [SEL].')
-                gr.Markdown('Select Text in right window and press one of the Quick Instructions')
+                gr.Markdown('Select Text in right window and press one of the Quick Enhancements')
                 with gr.Row():
-                    button_describe_all = gr.Button('Immersive description')
-                    button_describe_va = gr.Button('Vivid Imagery')
+                    button_describe_all = gr.Button('Description')
+                    button_describe_va = gr.Button('Visual')
                     button_describe_paint = gr.Button('Vivid Picture')
-                    button_describe_auditory = gr.Button('Auditory Senses')
-                    button_describe_smell = gr.Button('Senses of Smell')
+                    button_describe_auditory = gr.Button('Sound')
+                    button_describe_smell = gr.Button('Smell')
                     button_describe_simile = gr.Button('Simile')
+                    button_describe_continue = gr.Button('Write more')
 
                 extra_context = gr.Textbox(value=save_params["extra_context"], lines=5, label = 'Extra Context and Memories', elem_classes=['textbox'], info='Enter memories that the model should know. Example: Your name is Sarah and you are a student at UBC')
                 context_replace =  gr.Textbox(value=save_params["context_replace"], lines=1, label = 'System Instruction', elem_classes=['textbox'], info='If filled, it will replace the Instruct Template system instruction.', placeholder = 'Below is an instruction that describes a task, you are blah, blah, blah...')
@@ -530,7 +575,7 @@ def ui():
                         generate_btn = gr.Button('Generate New', variant='primary')
                         generate_btnR = gr.Button('Gen with memory', variant='primary', elem_classes="small-button")
                         #generate_Sel = gr.Button('Generate [SEL]', variant='primary', elem_classes="small-button")
-                        stop_btn = gr.Button('Stop', elem_classes="small-button")
+                        stop_btn = gr.Button('Stop', elem_classes="small-button", interactive= True)
                 #with gr.Column():
                 #    with gr.Row():    
                 #        mode = gr.Radio(label='Use Template', choices=['Chat', 'Instruction'], value='Instruction', elem_classes='slim-dropdown')
@@ -541,7 +586,7 @@ def ui():
                     with gr.Row():    
                         continue_btn =  gr.Button('Continue', variant='primary')
                         continue_btn_sel = gr.Button('Continue [SEL]',variant='primary', elem_classes="small-button")
-                        stop_btn2 = gr.Button('Stop', elem_classes="small-button")
+                        stop_btn2 = gr.Button('Stop', elem_classes="small-button", interactive= True)
                         clear2 = gr.Button('Clear', elem_classes="small-button")    
                         undo = gr.Button('Undo/Redo', elem_classes="small-button")
                         send_sel_keep = gr.Button('[Sel] to Keep', elem_classes="small-button")     
@@ -590,6 +635,9 @@ def ui():
     button_describe_simile.click(main_ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(
         partial(generate_reply_wrapperMY, quick_instruction = describe_add_simile ,_continue=True, _genwithResponse = False, _continue_sel = True, _postfix = simile_postfix, _addstop = ['.','!','?']), inputs=input_paramsQI, outputs= output_paramsA, show_progress=False)
                 
+    button_describe_continue.click(main_ui.gather_interface_values, gradio(shared.input_elements), gradio('interface_state')).then(
+        partial(generate_reply_wrapperMY, quick_instruction = describe_continue ,_continue=True, _genwithResponse = False, _continue_sel = True,_addstop = []), inputs=input_paramsQI, outputs= output_paramsA, show_progress=False)    
+    
     stop_btn.click(stop_everything_event, None, None, queue=False)
     stop_btn2.click(stop_everything_event, None, None, queue=False)
     
