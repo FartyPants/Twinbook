@@ -3,10 +3,8 @@
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/Q5Q5MOB4M)
 
 
--**Note: not currently working with the most recent WebUI that removed the Instruct template and added jinja**
-
 New:
-
+- Fix: Working with the most recent WebUI that removed the Instruct template and added jinja
 - Show Stats in divider (add model, lora and params after ~~~~ (optional settings in Extra context tab)
 - save state of the tect boxes so when it reloads, the text is back
 
