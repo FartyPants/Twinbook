@@ -564,6 +564,9 @@ def ui():
         with gr.Column():
             with gr.Tab('Response'):
                 text_boxB = gr.Textbox(value=save_params["text_boxB"], lines=20, label = '', elem_classes=['textbox', 'add_scrollbar'], elem_id='textbox-polybook')
+            with gr.Tab('Markdown'):
+                btn_MarkdownRender = gr.Button('Render')
+                div_MarkdownRender = gr.Markdown()
             with gr.Tab('Keep'):
                 text_boxC = gr.Textbox(value=save_params["text_boxC"], lines=20, label = '', elem_classes=['textbox', 'add_scrollbar'], elem_id='textbox-polybook')
                                
@@ -641,6 +644,8 @@ def ui():
     stop_btn.click(stop_everything_event, None, None, queue=False)
     stop_btn2.click(stop_everything_event, None, None, queue=False)
     
+    btn_MarkdownRender.click(lambda x: x, text_boxB, div_MarkdownRender, queue=False)
+
     def cleartext(texttextOUT):
         global last_undo
 
